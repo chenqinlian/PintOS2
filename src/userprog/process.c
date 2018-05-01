@@ -35,7 +35,7 @@ process_execute (const char *file_name)
   tid_t tid;
   char *token, *save_ptr;
 
-  printf("process_execute () runs with '%s' as an argument\n", file_name);
+  //printf("process_execute () runs with '%s' as an argument\n", file_name);
 
 
   /* Make a copy of FILE_NAME.
@@ -581,5 +581,5 @@ arguments_to_stack (char *file_name, void **esp)
      *(void **)(*esp) = 0;
 
   //show stack
-  hex_dump (PHYS_BASE - 128, PHYS_BASE - 128, 128, true);
+  //hex_dump (PHYS_BASE - 128, PHYS_BASE - 128, 128, true);
 }

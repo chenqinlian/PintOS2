@@ -70,6 +70,7 @@ syscall_handler (struct intr_frame *f)
 
   case SYS_EXEC:
     {
+      printf("SYS_EXEC");
       void* cmdline;
       if (memread_user(f->esp + 4, &cmdline, sizeof(cmdline)) == -1)
         thread_exit(); // invalid memory access
@@ -89,6 +90,9 @@ syscall_handler (struct intr_frame *f)
 
   case SYS_WRITE:
     {
+
+      //printf("\ncql:SYS_WRITE\n");
+
       int fd, return_code;
       const void *buffer;
       unsigned size;
