@@ -112,6 +112,8 @@ process_wait (tid_t child_tid UNUSED)
   // but process_wait should block the process for a while
   // to prevent the pintos kernel from shutting down.
   int dummy = 0, i;
+
+  //while(1);
   for(i=0; i<7 * 10000 * 10000; ++i) dummy += i;
   ASSERT(dummy != 0);
 
@@ -505,7 +507,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE - 12;  // temporary fix, as suggested IN THE MANUAL
+        *esp = PHYS_BASE - 12;
       else
         palloc_free_page (kpage);
     }
