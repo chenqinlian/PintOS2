@@ -7,215 +7,213 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+#ifdef DEBUG
+#define _DEBUG_PRINTF(...) printf(__VA_ARGS__)
+#else
+#define _DEBUG_PRINTF(...) /* do nothing */
+#endif
 
 static void syscall_handler (struct intr_frame *);
 
-//define const
+
 typedef uint32_t pid_t;
 
-//help function
-bool check_user(const uint8_t *uaddr);
-bool check_Bytes(void *pointer, size_t bytes);
-static int32_t get_user (const uint8_t *uaddr);
-void get_bytes (void *src, void *dst, size_t bytes);
+void sys_halt (void);
+void sys_exit (int);
+pid_t sys_exec (const char *cmdline);
 
-//minor functions in system call
+
+//help function
+void sys_write(int fd, const void *buffer, unsigned size);
+
+
+//memory check function
+void check_addr (const uint8_t *uaddr);
+void check_buffer (void* buffer, unsigned size);
+static int get_user (const uint8_t *uaddr);
+bool is_valid_string (const char *uaddr);
+void check_valid_string(const char *uaddr);
+
 
 void
-syscall_init (void) 
+syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 static void
-syscall_handler (struct intr_frame *f) 
+syscall_handler (struct intr_frame *f)
 {
 
-  printf ("system call!\n");
-
-  // Step1: check f->esp validation
-  if(!check_user(f->esp)){
-    thread_exit ();//to modify, add sys_halt
-    return;
-  }
-
-  // Step2: get f->esp value
-  int syscall_number;
-  syscall_number = get_user(f->esp);
-  printf ("system call! syscall number is : %d, ", syscall_number);
+  check_addr(f->esp);
+  int syscall_number = *(int *)(f->esp);
 
 
-  switch(syscall_number)
-  {
-    case SYS_HALT:
-      printf("SYS_HALT\n");
+
+  // Dispatch w.r.t system call number
+  // SYS_*** constants are defined in syscall-nr.h
+  switch (syscall_number) {
+  case SYS_HALT:
+    {
       sys_halt();
+      NOT_REACHED();
       break;
+    }
 
-    case SYS_EXIT:
-      printf("SYS_EXIT\n");
-      sys_exit();
+  case SYS_EXIT:
+    {
+      int exitcode = *(int *)(f->esp + 4);
+
+      sys_exit(exitcode);
+      NOT_REACHED();
       break;
+    }
 
-    case SYS_EXEC:
-      printf("SYS_EXEC\n");
+  case SYS_EXEC:
+    {
+      void* cmdline = *(char **)(f->esp+4);
+
+      check_valid_string(cmdline);
+
+      int return_code = sys_exec((const char*) cmdline);
+      f->eax = (uint32_t) return_code;
+      break;
+    }
+
+  case SYS_WAIT:
+  case SYS_CREATE:
+  case SYS_REMOVE:
+  case SYS_OPEN:
+  case SYS_FILESIZE:
+  case SYS_READ:
+    goto unhandled;
+
+  case SYS_WRITE:
+    {
+
       
-      void *cmdline= (void *)f->esp+4;
-      
-      //TODO:check cmdline validation
-      pid_t sys_exec(const char *cmdline);
+      check_addr(f->esp+4);
+      check_addr(f->esp+8);
+      check_addr(f->esp+12);
 
-      break;
+      int fd = *(int *)(f->esp+4);
+      void *buffer = (void *)(f->esp+8);
+      size_t size = *(size_t *)(f->esp+12);
 
-    case SYS_WAIT:
-      printf("SYS_WAIT\n");
-      break;
-    case SYS_CREATE:
-      printf("SYS_CREATE\n");
-      break;
-    case SYS_REMOVE:
-      printf("SYS_REMOVE\n");
-      break;
-    case SYS_OPEN:
-      printf("SYS_OPEN\n");
-      break;
-    case SYS_FILESIZE:
-      printf("SYS_FILESIZE\n");
-      break;
-    case SYS_READ:
-      printf("SYS_READ\n");
-      break;
-
-    case SYS_WRITE:
-      printf("SYS_WRITE\n");
-      
-      bool judge = !(check_Bytes(f->esp+4,4) && check_Bytes(f->esp+8,4) && check_Bytes(f->esp+12,4) );
-      printf("judge?%d\n", judge);
-
-      if(!(check_Bytes(f->esp+4,4) && check_Bytes(f->esp+8,4) && check_Bytes(f->esp+12,4) )){
-        thread_exit();
-      }
-      
-  
-      int fd = (int)get_user(f->esp+4);
-      const void *buffer = (const void *)get_user(f->esp+8);
-      int size   = (int)get_user(f->esp+12);
-
-      printf("fd=%d\n", fd);
-      printf("size=%d\n", fd);
+    
+      check_buffer (buffer, size);
+      sys_write(fd, buffer, size);
 
 
-      sys_write(fd, buffer, size); 
-      f->eax = size;
 
-      printf("cql_SYS_WRIT:successfully");
       break;
+    }
 
-    case SYS_SEEK:
-      printf("SYS_SEEK\n");
-      break;
-    case SYS_TELL:
-      printf("SYS_TELL\n");
-      break;
-    case SYS_CLOSE:
-      printf("SYS_CLOSE\n");
-      break;
-    default:
-      printf("cql_TODO: syscall number: %d, not implemented!", syscall_number);
+  case SYS_SEEK:
+  case SYS_TELL:
+  case SYS_CLOSE:
 
+  /* unhandled case */
+  default:
+    unhandled:
+    printf("[ERROR] system call %d is unimplemented!\n", syscall_number);
+    thread_exit();
+    break;
   }
-  thread_exit ();
 }
 
-
-/*
-  ##############################################
-  #         Minor Function in SystemCalls      #
-  ##############################################
-*/
-void sys_halt(void){
+void sys_halt(void) {
   shutdown_power_off();
 }
 
-void sys_exit(void){
+void sys_exit(int status UNUSED) {
+  printf("%s: exit(%d)\n", thread_current()->name, status);
+
   thread_exit();
 }
 
+pid_t sys_exec(const char *cmdline) {
 
-void sys_write(int fd, const void *buffer, int size){
-  printf("fd=%d\n",fd);
-  printf("check_user((const uint8_t*) buffer):%d\n",check_user((const uint8_t*) buffer));
+  tid_t child_tid = process_execute(cmdline);
+  return child_tid;
+}
 
-  printf("cql_SYS_check0\n");
-  if(size<0 || !check_user((const uint8_t*) buffer)){
-    printf("cql_SYS_check1\n");
+
+void sys_write(int fd, const void *buffer, unsigned size){
+    
+      check_buffer ((void *)buffer, size);
+
+      //Case1: print to screem
+      if(fd == 1)
+      {
+        putbuf (*(char **)buffer, size);
+        return;
+      }
+    
+      //Case2: print to file 
+      else{ 
+        //TODO
+
+
+
+      }
+
+}
+
+
+
+
+
+void
+check_addr(const uint8_t *uaddr){
+  if ((void*)uaddr > PHYS_BASE){
     thread_exit();
-  }
-  
-  printf("cql_SYS_check2\n");
-  if(fd==1){
-    printf("cql_SYS_check3\n");
-    putbuf(buffer, size);
-    printf("cql_SYS_check4\n");
-  }
-  else{
-    printf("cql_warning for SYS_WRITE: fd!=1\n");
   }
 
   return;
 }
 
-pid_t sys_exec(const char *cmdline){
-   tid_t child_tid = process_execute(cmdline);
-   return child_tid;
+void
+check_buffer (void* buffer, unsigned size){
 
-}
-
-
-
-
-/*
-  ##################################
-  #         Support Function       #
-  ##################################
-*/
-bool
-check_user(const uint8_t *uaddr){
-  if ((void*)uaddr < PHYS_BASE){
-    return true;
-  }
-  return false;
-}
-
-bool
-check_Bytes(void *pointer, size_t bytes){
-  for(int i=0; i<bytes; i++){
-    
-    //TODO?  check_user((const uint8_t)(pointer +i))
-    if(!check_user(pointer +i)){
-      return false;
+  unsigned i;
+  char* local_buffer = (char *) buffer;
+  for (i = 0; i < size; i++)
+    {
+      check_addr((const void*) local_buffer);
+      local_buffer++;
     }
-  }
 
-  return true;
 }
 
-static int32_t
-get_user (const uint8_t *uaddr) {
 
+
+static int
+get_user (const uint8_t *uaddr) {
    int result;
    asm ("movl $1f, %0; movzbl %1, %0; 1:"
        : "=&a" (result) : "m" (*uaddr));
    return result;
 }
 
-void
-get_bytes (void *src, void *dst, size_t bytes) {
-
-  //graphic:  memcpy(dst, src, size_t bytes)
-  memcpy(dst, src, sizeof(char)*bytes); 
-
-  return;
+bool is_valid_string (const char *uaddr)
+{
+  char ch;
+  int i;
+  if (!is_user_vaddr(uaddr))
+    return false;
+  for(i = 0; (ch = get_user((char *)(uaddr + i))) != -1 && ch != 0; i++)
+  {
+    if(!is_user_vaddr(uaddr + i + 1))
+      return false;
+  }
+  return ch == 0;
 }
 
+void check_valid_string(const char *uaddr){
+  
+  if(!is_valid_string(uaddr)){
+     thread_exit();
+  }
 
+}
