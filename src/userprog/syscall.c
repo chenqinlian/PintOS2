@@ -22,9 +22,8 @@ syscall_handler (struct intr_frame *f)
 
   printf ("system call!\n");
   int syscall_number;
-  void *argument_1;
-  void *argument_2;
-  void *argument_3;
+
+
   /* Number of arguments that are used depends on syscall number.
      Max number of arguments is 3. */
   syscall_number = *(int *)(f->esp);
@@ -71,6 +70,58 @@ syscall_handler (struct intr_frame *f)
     case SYS_CLOSE:
       printf("SYS_CLOSE\n");
       break;
+    default:
+      printf("cql_TODO: syscall number: %d, not implemented!", syscall_number);
+
   }
   thread_exit ();
 }
+
+
+
+
+/*
+  ##################################
+  #         Support Function       #
+  ##################################
+*/
+bool
+check_user(const uint8_t *uaddr){
+  if ((void*)uaddr > PHYS_BASE){
+    return false;
+  }
+  return true;
+
+}
+
+bool
+check_Bytes(void *pointer, size_t bytes){
+  for(int i=0; i<bytes; i++){
+    
+    //TODO?  check_user((const uint8_t)(pointer +i))
+    if(!check_user(pointer +i)){
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static int32_t
+get_user (const uint8_t *uaddr) {
+
+   int result;
+   asm ("movl $1f, %0; movzbl %1, %0; 1:"
+       : "=&a" (result) : "m" (*uaddr));
+   return result;
+}
+
+void
+get_bytes (void *src, void *dst, size_t bytes) {
+
+  //graphic:  memcpy(dst, src, size_t bytes)
+  memcpy(dst, src, sizeof(char)*bytes); 
+
+  return;
+}
+
