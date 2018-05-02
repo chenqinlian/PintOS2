@@ -10,6 +10,12 @@
 
 static void syscall_handler (struct intr_frame *);
 
+//help function
+bool check_user(const uint8_t *uaddr);
+bool check_Bytes(void *pointer, size_t bytes);
+static int32_t get_user (const uint8_t *uaddr);
+void get_bytes (void *src, void *dst, size_t bytes);
+
 void
 syscall_init (void) 
 {
