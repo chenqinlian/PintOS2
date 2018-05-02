@@ -221,7 +221,7 @@ struct Elf32_Phdr
 #define PF_R 4          /* Readable. */
 
 /* Values for Arguments to stack*/
-#define DEFARULT_ARGV 4
+#define DEFAULT_ARGV 30
 #define WORD_SIZE 4    
 
 
@@ -516,7 +516,7 @@ arguments_to_stack (char *file_name, void **esp)
 
   //Step1: read tokens from [char *filename], store it in argv[]
   int argc = 0;
-  char *argv[DEFARULT_ARGV];               //record token
+  char *argv[DEFAULT_ARGV];               //record token
 
   for(token = strtok_r (file_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
 
@@ -527,7 +527,7 @@ arguments_to_stack (char *file_name, void **esp)
 
   //Step2: push each argv[i] to its *esp address, record esp address
 
-  char  *argv_address[DEFARULT_ARGV];
+  char  *argv_address[DEFAULT_ARGV];
   int temp = *esp;
   
   //printf("step2: esp_cql: %x\n", *esp);
