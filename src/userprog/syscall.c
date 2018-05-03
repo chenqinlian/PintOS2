@@ -14,7 +14,7 @@
 #endif
 
 static void syscall_handler (struct intr_frame *);
-
+static int memread_user (void *src, void *des, size_t bytes);
 
 typedef uint32_t pid_t;
 
@@ -25,14 +25,14 @@ pid_t sys_exec (const char *cmdline);
 
 //help function
 void sys_write(int fd, const void *buffer, unsigned size);
-
+int sys_badmemory_access(void);
 
 //memory check function
 void check_addr (const uint8_t *uaddr);
 void check_buffer (void* buffer, unsigned size);
 static int get_user (const uint8_t *uaddr);
-bool is_valid_string (const char *uaddr);
-void check_valid_string(const char *uaddr);
+//bool is_valid_string (const char *uaddr);
+//void check_valid_string(const char *uaddr);
 
 
 void
@@ -46,8 +46,20 @@ syscall_handler (struct intr_frame *f)
 {
 
   check_addr(f->esp);
-  int syscall_number = *(int *)(f->esp);
 
+
+  //printf("f->esp:%x\n", f->esp);
+  //printf("is_valid_string:%d\n", is_valid_string(f->esp));
+
+  int syscall_number;
+
+  if (memread_user(f->esp, &syscall_number, sizeof(syscall_number)) == -1)
+    sys_badmemory_access();
+
+
+  //int syscall_number = *(int *)(f->esp);
+
+  //printf("syscall_number:%d\n",syscall_number);
 
 
   // Dispatch w.r.t system call number
@@ -64,6 +76,12 @@ syscall_handler (struct intr_frame *f)
     {
       int exitcode = *(int *)(f->esp + 4);
 
+      //TODO: need fix
+      if(exitcode<-1000){
+        sys_badmemory_access();
+      }
+     
+
       sys_exit(exitcode);
       NOT_REACHED();
       break;
@@ -73,7 +91,7 @@ syscall_handler (struct intr_frame *f)
     {
       void* cmdline = *(char **)(f->esp+4);
 
-      check_valid_string(cmdline);
+      //check_valid_string(cmdline);
 
       int return_code = sys_exec((const char*) cmdline);
       f->eax = (uint32_t) return_code;
@@ -100,7 +118,7 @@ syscall_handler (struct intr_frame *f)
       void *buffer = (void *)(f->esp+8);
       size_t size = *(size_t *)(f->esp+12);
 
-    
+
       check_buffer (buffer, size);
       sys_write(fd, buffer, size);
 
@@ -130,6 +148,11 @@ void sys_exit(int status UNUSED) {
   printf("%s: exit(%d)\n", thread_current()->name, status);
 
   thread_exit();
+}
+
+int sys_badmemory_access(void) {
+  sys_exit (-1);
+  NOT_REACHED();
 }
 
 pid_t sys_exec(const char *cmdline) {
@@ -162,6 +185,7 @@ void sys_write(int fd, const void *buffer, unsigned size){
 
 
 
+//memory check function
 
 
 void
@@ -196,6 +220,8 @@ get_user (const uint8_t *uaddr) {
    return result;
 }
 
+
+/*
 bool is_valid_string (const char *uaddr)
 {
   char ch;
@@ -213,7 +239,22 @@ bool is_valid_string (const char *uaddr)
 void check_valid_string(const char *uaddr){
   
   if(!is_valid_string(uaddr)){
-     thread_exit();
+     sys_badmemory_access();
   }
 
 }
+*/
+ static int
+ memread_user (void *src, void *dst, size_t bytes)
+ {
+   int32_t value;
+   size_t i;
+   for(i=0; i<bytes; i++) {
+     value = get_user(src + i);
+     if(value < 0) return -1; // invalid memory access.
+     *(char*)(dst + i) = value & 0xff;
+   }
+   return (int)bytes;
+ }
+
+
