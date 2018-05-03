@@ -28,8 +28,8 @@ void sys_write(int fd, const void *buffer, unsigned size);
 int sys_badmemory_access(void);
 
 //memory check function
-void check_addr (const uint8_t *uaddr);
-void check_buffer (void* buffer, unsigned size);
+bool check_addr (const uint8_t *uaddr);
+bool check_buffer (void* buffer, unsigned size);
 static int get_user (const uint8_t *uaddr);
 //bool is_valid_string (const char *uaddr);
 //void check_valid_string(const char *uaddr);
@@ -44,25 +44,25 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
-
-  check_addr(f->esp);
-
-  //int syscall_number;
-
+  if(!check_addr(f->esp)){
+    thread_exit();
+  }
+  
   /*
+  int syscall_number;
+
   if (memread_user(f->esp, &syscall_number, sizeof(syscall_number)) == -1)
     sys_badmemory_access();
   */
 
-  check_buffer(f->esp,4);
+  
+  if(!check_buffer(f->esp,4)){
+    sys_badmemory_access();
+  }
+  
 
   int syscall_number = *(int *)(f->esp);
 
-  //printf("syscall_number:%d\n",syscall_number);
-
-
-  // Dispatch w.r.t system call number
-  // SYS_*** constants are defined in syscall-nr.h
   switch (syscall_number) {
   case SYS_HALT:
     {
@@ -109,16 +109,25 @@ syscall_handler (struct intr_frame *f)
     {
 
       
-      check_addr(f->esp+4);
-      check_addr(f->esp+8);
-      check_addr(f->esp+12);
+      if (!check_addr(f->esp+4)){
+        thread_exit();
+      }
+      if (!check_addr(f->esp+8)){
+        thread_exit();
+      }
+      if (!check_addr(f->esp+12)){
+        thread_exit();
+      }
 
       int fd = *(int *)(f->esp+4);
       void *buffer = (void *)(f->esp+8);
       size_t size = *(size_t *)(f->esp+12);
 
 
-      check_buffer (buffer, size);
+      if(!check_buffer (buffer, size)){
+        thread_exit();
+      }
+
       sys_write(fd, buffer, size);
 
 
@@ -163,7 +172,10 @@ pid_t sys_exec(const char *cmdline) {
 
 void sys_write(int fd, const void *buffer, unsigned size){
     
-      check_buffer ((void *)buffer, size);
+      if(!check_buffer ((void *)buffer, size)){
+        thread_exit();
+      }
+      
 
       //Case1: print to screem
       if(fd == 1)
@@ -187,26 +199,30 @@ void sys_write(int fd, const void *buffer, unsigned size){
 //memory check function
 
 
-void
+bool
 check_addr(const uint8_t *uaddr){
   if ((void*)uaddr > PHYS_BASE){
-    thread_exit();
+    //thread_exit();
+    return false;
   }
 
-  return;
+  return true;
 }
 
-void
+bool
 check_buffer (void* buffer, unsigned size){
 
   unsigned i;
   char* local_buffer = (char *) buffer;
   for (i = 0; i < size; i++)
     {
-      check_addr((const void*) local_buffer);
+      if(!check_addr((const void*) local_buffer) || get_user(local_buffer)<0){
+        return false;
+      }
       local_buffer++;
     }
 
+  return true;
 }
 
 
