@@ -47,17 +47,16 @@ syscall_handler (struct intr_frame *f)
 
   check_addr(f->esp);
 
+  //int syscall_number;
 
-  //printf("f->esp:%x\n", f->esp);
-  //printf("is_valid_string:%d\n", is_valid_string(f->esp));
-
-  int syscall_number;
-
+  /*
   if (memread_user(f->esp, &syscall_number, sizeof(syscall_number)) == -1)
     sys_badmemory_access();
+  */
 
+  check_buffer(f->esp,4);
 
-  //int syscall_number = *(int *)(f->esp);
+  int syscall_number = *(int *)(f->esp);
 
   //printf("syscall_number:%d\n",syscall_number);
 
