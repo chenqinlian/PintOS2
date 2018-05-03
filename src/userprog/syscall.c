@@ -7,32 +7,25 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-#ifdef DEBUG
-#define _DEBUG_PRINTF(...) printf(__VA_ARGS__)
-#else
-#define _DEBUG_PRINTF(...) /* do nothing */
-#endif
-
-static void syscall_handler (struct intr_frame *);
-static int memread_user (void *src, void *des, size_t bytes);
 
 typedef uint32_t pid_t;
 
-void sys_halt (void);
-void sys_exit (int);
-pid_t sys_exec (const char *cmdline);
-
+static void syscall_handler (struct intr_frame *);
 
 //help function
 void sys_write(int fd, const void *buffer, unsigned size);
+void sys_halt (void);
+void sys_exit (int);
 int sys_badmemory_access(void);
+pid_t sys_exec (const char *cmdline);
+
+
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
 bool check_buffer (void* buffer, unsigned size);
 static int get_user (const uint8_t *uaddr);
-//bool is_valid_string (const char *uaddr);
-//void check_valid_string(const char *uaddr);
+
 
 
 void
@@ -48,13 +41,6 @@ syscall_handler (struct intr_frame *f)
     thread_exit();
   }
   
-  /*
-  int syscall_number;
-
-  if (memread_user(f->esp, &syscall_number, sizeof(syscall_number)) == -1)
-    sys_badmemory_access();
-  */
-
   
   if(!check_buffer(f->esp,4)){
     sys_badmemory_access();
@@ -91,6 +77,7 @@ syscall_handler (struct intr_frame *f)
       void* cmdline = *(char **)(f->esp+4);
 
       //check_valid_string(cmdline);
+      //TODO: add check
 
       int return_code = sys_exec((const char*) cmdline);
       f->eax = (uint32_t) return_code;
@@ -235,41 +222,5 @@ get_user (const uint8_t *uaddr) {
    return result;
 }
 
-
-/*
-bool is_valid_string (const char *uaddr)
-{
-  char ch;
-  int i;
-  if (!is_user_vaddr(uaddr))
-    return false;
-  for(i = 0; (ch = get_user((char *)(uaddr + i))) != -1 && ch != 0; i++)
-  {
-    if(!is_user_vaddr(uaddr + i + 1))
-      return false;
-  }
-  return ch == 0;
-}
-
-void check_valid_string(const char *uaddr){
-  
-  if(!is_valid_string(uaddr)){
-     sys_badmemory_access();
-  }
-
-}
-*/
- static int
- memread_user (void *src, void *dst, size_t bytes)
- {
-   int32_t value;
-   size_t i;
-   for(i=0; i<bytes; i++) {
-     value = get_user(src + i);
-     if(value < 0) return -1; // invalid memory access.
-     *(char*)(dst + i) = value & 0xff;
-   }
-   return (int)bytes;
- }
 
 
