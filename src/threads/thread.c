@@ -511,6 +511,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->LockWaitOn = NULL;
   list_init(&t->locks);
 
+#ifdef USERPROG
+  //Project2
+  list_init(&t->child_list);
+  t->pcb = NULL;
+#endif
+
 
 }
 
