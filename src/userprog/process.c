@@ -100,17 +100,20 @@ start_process (void *pcb_)
   success = load (file_name, &if_.eip, &if_.esp);
 
   /* If load success, pass arguments. */
-  if (success)
+  if (success){
     arguments_to_stack (file_name, &if_.esp);
-  /* If load failed, quit. */
-  palloc_free_page (file_name);
+    /* If load failed, quit. */
+    struct thread *t = thread_current();
+    pcb->pid = success ? (pid_t)(t->tid) : PID_ERROR;
+    t->pcb = pcb;
+    sema_up(&pcb->sema_initialization);
+    palloc_free_page (file_name);
+
+  }
+
   if (!success) 
     thread_exit ();
 
-  struct thread *t = thread_current();
-  pcb->pid = success ? (pid_t)(t->tid) : PID_ERROR;
-  t->pcb = pcb;
-  sema_up(&pcb->sema_initialization);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -131,7 +134,7 @@ start_process (void *pcb_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
   struct thread *t = thread_current ();
   struct list *child_list = &(t->child_list);
