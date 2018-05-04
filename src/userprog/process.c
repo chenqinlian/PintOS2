@@ -51,23 +51,31 @@ process_execute (const char *file_name)
   //printf("cql_token:%s\n\n", token);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  struct pcbtype *pcb = palloc_get_page(0);
+  pcb->pid = PID_INITIALIZING;
+  pcb->cmdline = fn_copy;
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, pcb);
+  if (tid == TID_ERROR){
+    palloc_free_page (pcb);
+    palloc_free_page (file_name);
     palloc_free_page (fn_copy); 
+  }
   /* wait for the process ends */
-  else
-
-    //printf("process_waiting_cql\n");
+  else{
     process_wait (tid);
+  }
+
   return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
+start_process (void *pcb_)
 {
-  char *file_name = file_name_;
+  struct pcbtype *pcb = pcb_;
+  char *file_name = (char*) pcb->cmdline;
+
   struct intr_frame if_;
   bool success;
 
