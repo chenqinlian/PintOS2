@@ -46,7 +46,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Tokenize file_name to get process name */
-  token = strtok_r (file_name, " ", &save_ptr);
+  token = strtok_r ((char *)file_name, " ", &save_ptr);
 
   //printf("cql_token:%s\n\n", token);
 
@@ -54,16 +54,29 @@ process_execute (const char *file_name)
   struct pcbtype *pcb = palloc_get_page(0);
   pcb->pid = PID_INITIALIZING;
   pcb->cmdline = fn_copy;
+
+  pcb->waiting = false;
+  pcb->exited = false;
+  pcb->exitcode = -1; // undefined
+
+  sema_init(&pcb->sema_initialization, 0);
+  sema_init(&pcb->sema_wait, 0);
+
   tid = thread_create (file_name, PRI_DEFAULT, start_process, pcb);
   if (tid == TID_ERROR){
     palloc_free_page (pcb);
-    palloc_free_page (file_name);
+    palloc_free_page ((void*)file_name);
     palloc_free_page (fn_copy); 
   }
   /* wait for the process ends */
   else{
     process_wait (tid);
   }
+
+  sema_down(&pcb->sema_initialization);
+
+  // process successfully created, maintain child process list
+  list_push_back (&(thread_current()->child_list), &(pcb->elem));
 
   return tid;
 }
@@ -94,6 +107,11 @@ start_process (void *pcb_)
   if (!success) 
     thread_exit ();
 
+  struct thread *t = thread_current();
+  pcb->pid = success ? (pid_t)(t->tid) : PID_ERROR;
+  t->pcb = pcb;
+  sema_up(&pcb->sema_initialization);
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -115,12 +133,52 @@ start_process (void *pcb_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  //while (1);
-   int dummy = 0, i;
-   for(i=0; i<7 * 10000 * 10000; ++i) dummy += i;
-   ASSERT(dummy != 0);
+  struct thread *t = thread_current ();
+  struct list *child_list = &(t->child_list);
 
-  return -1;
+  // lookup the process with tid equals 'child_tid' from 'child_list'
+  struct pcbtype *child_pcb = NULL;
+  struct list_elem *it = NULL;
+
+  if (!list_empty(child_list)) {
+    for (it = list_front(child_list); it != list_end(child_list); it = list_next(it)) {
+      struct pcbtype *pcb = list_entry(
+          it, struct pcbtype, elem);
+
+      if(pcb->pid == child_tid) { // OK, the direct child found
+        child_pcb = pcb;
+        break;
+      }
+    }
+  }
+
+  // if child process is not found, return -1 immediately
+  if (child_pcb == NULL) {
+    //_DEBUG_PRINTF("[DEBUG] wait(): child not found, pid = %d\n", child_tid);
+    return -1;
+  }
+
+  if (child_pcb->waiting) {
+    // already waiting (the parent already called wait on child's pid)
+    //_DEBUG_PRINTF("[DEBUG] wait(): child found, pid = %d, but it is already waiting\n", child_tid);
+    return -1; // a process may wait for any fixed child at most once
+  }
+  else {
+    child_pcb->waiting = true;
+  }
+
+  // block until child terminates, and return the exitcode
+  // TODO: scenario of zombie process is tricky!
+  if (! child_pcb->exited) {
+    sema_down(& (child_pcb->sema_wait));
+  }
+  ASSERT (child_pcb->exited == true);
+
+  // remove from child_list
+  ASSERT (it != NULL);
+  list_remove (it);
+  return child_pcb->exitcode;
+
 }
 
 /* Free the current process's resources. */

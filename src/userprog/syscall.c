@@ -154,6 +154,15 @@ void sys_halt(void) {
 void sys_exit(int status UNUSED) {
   printf("%s: exit(%d)\n", thread_current()->name, status);
 
+  
+  struct pcbtype *pcb = thread_current()->pcb;
+  ASSERT (pcb != NULL);
+
+  pcb->exited = true;
+  pcb->exitcode = status;
+  sema_up (&pcb->sema_wait);
+  
+
   thread_exit();
 }
 
@@ -221,7 +230,7 @@ check_buffer (void* buffer, unsigned size){
   char* local_buffer = (char *) buffer;
   for (i = 0; i < size; i++)
     {
-      if(!check_addr((const void*) local_buffer) || get_user(local_buffer)<0){
+      if(!check_addr((const void*) local_buffer) || get_user((const uint8_t *)local_buffer)<0){
         return false;
       }
       local_buffer++;
