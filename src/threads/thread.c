@@ -316,7 +316,7 @@ thread_yield (void)
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
-  ASSERT (!intr_context ());
+  //ASSERT (!intr_context ());
 
   old_level = intr_disable ();
   if (cur != idle_thread){
@@ -505,6 +505,14 @@ init_thread (struct thread *t, const char *name, int priority)
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
+
+  #ifdef USERPROG
+    // init process-related informations.
+    list_init(&t->child_list);
+    t->pcb = NULL;
+  #endif
+
+
 
   /* Set up Locks held/ lock is waiting on / initial priority for task1.2*/
   t->InitialPriority = priority;

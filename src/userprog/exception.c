@@ -89,7 +89,7 @@ kill (struct intr_frame *f)
       printf ("%s: dying due to interrupt %#04x (%s).\n",
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
-      thread_exit ();
+      sys_exit (-1); // terminate. no more wait, parent
 
     case SEL_KCSEG:
       /* Kernel's code segment, which indicates a kernel bug.
@@ -104,7 +104,7 @@ kill (struct intr_frame *f)
          kernel. */
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
-      thread_exit ();
+      sys_exit (-1); // terminate. no more wait, parent
     }
 }
 
@@ -148,8 +148,9 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* If it is kernel mode */
-  if(!user) {
+  /* (3.1.5) a page fault in the kernel merely sets eax to 0xffffffff
+   * and copies its former value into eip */
+  if(!user) { // kernel mode
     f->eip = (void *) f->eax;
     f->eax = 0xffffffff;
     return;
