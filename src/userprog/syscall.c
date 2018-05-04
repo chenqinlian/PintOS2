@@ -18,7 +18,7 @@ void sys_halt (void);
 void sys_exit (int);
 int sys_badmemory_access(void);
 pid_t sys_exec (const char *cmdline);
-
+int sys_wait(pid_t pid);
 
 
 //memory check function
@@ -84,7 +84,19 @@ syscall_handler (struct intr_frame *f)
       break;
     }
 
-  case SYS_WAIT:
+  case SYS_WAIT:{
+    if(!check_buffer(f->esp+4, sizeof(pid_t))){
+      sys_badmemory_access();
+    }    
+
+    int pid = *(int *)(f->esp+4);
+
+    int return_code = sys_wait(pid);
+
+    f->eax = return_code;
+
+  }
+
   case SYS_CREATE:
   case SYS_REMOVE:
   case SYS_OPEN:
@@ -181,6 +193,12 @@ void sys_write(int fd, const void *buffer, unsigned size){
 
 }
 
+int sys_wait(pid_t pid){
+  
+  //printf("sys_wait\n");
+  return process_wait(pid);
+  
+}
 
 
 //memory check function
