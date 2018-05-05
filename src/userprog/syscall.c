@@ -22,11 +22,12 @@ void sys_exit (int);
 pid_t sys_exec (const char *cmdline);
 int sys_wait(pid_t pid);
 
-bool sys_write(int fd, const void *buffer, unsigned size, int* ret);
+
 
 
 //help function
 int sys_badmemory_access(void);
+void sys_write(int fd, const void *buffer, unsigned size);
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -118,17 +119,30 @@ syscall_handler (struct intr_frame *f)
 
   case SYS_WRITE:
     {
-      int fd, return_code;
-      const void *buffer;
-      unsigned size;
+      if (!check_addr(f->esp+4)){
+        thread_exit();
+      }
+      if (!check_addr(f->esp+8)){
+        thread_exit();
+      }
+      if (!check_addr(f->esp+12)){
+        thread_exit();
+      }
 
-      if(-1 == memread_user(f->esp + 4, &fd, 4)) fail_invalid_access();
-      if(-1 == memread_user(f->esp + 8, &buffer, 4)) fail_invalid_access();
-      if(-1 == memread_user(f->esp + 12, &size, 4)) fail_invalid_access();
+      int fd = *(int *)(f->esp+4);
+      void *buffer = (void *)(f->esp+8);
+      size_t size = *(size_t *)(f->esp+12);
 
-      if(!sys_write(fd, buffer, size, &return_code))
-        thread_exit(); // TODO
-      f->eax = (uint32_t) return_code;
+
+      if(!check_buffer (buffer, size)){
+        thread_exit();
+      }
+
+      sys_write(fd, buffer, size);
+
+      //TODO:
+      //f->eax= ?
+
       break;
     }
 
@@ -137,15 +151,12 @@ syscall_handler (struct intr_frame *f)
   case SYS_CLOSE:
 
   /* unhandled case */
-unhandled:
   default:
+    unhandled:
     printf("[ERROR] system call %d is unimplemented!\n", syscall_number);
-
-    // ensure that waiting (parent) process should wake up and terminate.
-    sys_exit(-1);
+    thread_exit();
     break;
   }
-
 }
 
 
@@ -186,25 +197,28 @@ int sys_wait(pid_t pid) {
   return process_wait(pid);
 }
 
-bool sys_write(int fd, const void *buffer, unsigned size, int* ret) {
-  // memory validation
-  if (get_user((const uint8_t*) buffer) == -1) {
-    // invalid
-    thread_exit();
-    return false;
-  }
+void sys_write(int fd, const void *buffer, unsigned size){
+    
+      if(!check_buffer ((void *)buffer, size)){
+        thread_exit();
+      }
+      
 
-  // First, as of now, only implement fd=1 (stdout)
-  // in order to display the messages from the test sets correctly.
-  if(fd == 1) {
-    putbuf(buffer, size);
-    *ret = size;
-    return true;
-  }
-  else {
-    printf("[ERROR] sys_write unimplemented\n");
-  }
-  return false;
+      //Case1: print to screem
+      if(fd == 1)
+      {
+        putbuf (*(char **)buffer, size);
+        return;
+      }
+    
+      //Case2: print to file 
+      else{ 
+        //TODO
+
+
+
+      }
+
 }
 
 /****************** Helper Functions on Memory Access ********************/
