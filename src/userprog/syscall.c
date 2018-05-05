@@ -15,7 +15,6 @@
 
 static void syscall_handler (struct intr_frame *);
 
-static int32_t get_user (const uint8_t *uaddr);
 static int memread_user (void *src, void *des, size_t bytes);
 
 void sys_halt (void);
@@ -24,6 +23,15 @@ pid_t sys_exec (const char *cmdline);
 int sys_wait(pid_t pid);
 
 bool sys_write(int fd, const void *buffer, unsigned size, int* ret);
+
+
+//help function
+int sys_badmemory_access(void);
+
+//memory check function
+bool check_addr (const uint8_t *uaddr);
+bool check_buffer (void* buffer, unsigned size);
+static int get_user (const uint8_t *uaddr);
 
 
 void
@@ -41,24 +49,23 @@ static int fail_invalid_access(void) {
 static void
 syscall_handler (struct intr_frame *f)
 {
-  int syscall_number;
+  if(!check_addr(f->esp)){
+    thread_exit();
+  }
+  
+  
+  if(!check_buffer(f->esp,4)){
+    sys_badmemory_access();
+  }
+  
 
-  ASSERT( sizeof(syscall_number) == 4 ); // assuming x86
+  int syscall_number = *(int *)(f->esp);
 
-  // The system call number is in the 32-bit word at the caller's stack pointer.
-  if (memread_user(f->esp, &syscall_number, sizeof(syscall_number)) == -1)
-    fail_invalid_access();
-
-  _DEBUG_PRINTF ("[DEBUG] system call, number = %d!\n", syscall_number);
-
-  // Dispatch w.r.t system call number
-  // SYS_*** constants are defined in syscall-nr.h
   switch (syscall_number) {
   case SYS_HALT:
     {
-      sys_halt();
-      NOT_REACHED();
-      break;
+      shutdown_power_off();
+
     }
 
   case SYS_EXIT:
@@ -133,9 +140,7 @@ unhandled:
 
 }
 
-void sys_halt(void) {
-  shutdown_power_off();
-}
+
 
 void sys_exit(int status) {
   printf("%s: exit(%d)\n", thread_current()->name, status);
@@ -151,6 +156,11 @@ void sys_exit(int status) {
   sema_up (&pcb->sema_wait);
 
   thread_exit();
+}
+
+int sys_badmemory_access(void) {
+  sys_exit (-1);
+  NOT_REACHED();
 }
 
 pid_t sys_exec(const char *cmdline) {
@@ -224,3 +234,30 @@ memread_user (void *src, void *dst, size_t bytes)
   }
   return (int)bytes;
 }
+
+bool
+check_addr(const uint8_t *uaddr){
+  if ((void*)uaddr > PHYS_BASE){
+    //thread_exit();
+    return false;
+  }
+
+  return true;
+}
+
+bool
+check_buffer (void* buffer, unsigned size){
+
+  unsigned i;
+  char* local_buffer = (char *) buffer;
+  for (i = 0; i < size; i++)
+    {
+      if(!check_addr((const void*) local_buffer) || get_user((const uint8_t *)local_buffer)<0){
+        return false;
+      }
+      local_buffer++;
+    }
+
+  return true;
+}
+
