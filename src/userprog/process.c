@@ -164,7 +164,7 @@ process_wait (tid_t child_tid)
     }
   }
   
-  return -1;
+  return child_toexit->exitcode;
 
 }
 
