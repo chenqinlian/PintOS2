@@ -96,12 +96,16 @@ syscall_handler (struct intr_frame *f)
 
   case SYS_WAIT: // 3
     {
-      pid_t pid;
-      if (memread_user(f->esp + 4, &pid, sizeof(pid_t)) == -1)
-        fail_invalid_access();
 
-      int ret = sys_wait(pid);
-      f->eax = (uint32_t) ret;
+      if(!check_buffer(f->esp+4, sizeof(pid_t))){
+        sys_badmemory_access();
+      }    
+
+      pid_t pid = *(int *)(f->esp+4);
+
+      int return_code = sys_wait(pid);
+
+      f->eax = return_code;
       break;
     }
 
@@ -179,7 +183,6 @@ pid_t sys_exec(const char *cmdline) {
 }
 
 int sys_wait(pid_t pid) {
-  _DEBUG_PRINTF ("[DEBUG] Wait : %d\n", pid);
   return process_wait(pid);
 }
 
