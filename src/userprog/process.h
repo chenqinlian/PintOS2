@@ -4,7 +4,7 @@
 #include "threads/thread.h"
 #include "threads/synch.h"
 
-typedef uint32_t pid_t;
+typedef int pid_t;
 
 #define PID_ERROR         ((pid_t) -1)
 #define PID_INITIALIZING  ((pid_t) -2)
@@ -21,16 +21,15 @@ void getchild(struct list *child_list, struct process_control_block **child_toex
 /* PCB : see initialization at process_execute(). */
 struct process_control_block {
 
-  pid_t pid;                /* The pid of process */
+  pid_t pid;                /* process pid */
 
-  const char* cmdline;      /* The command line of this process being executed */
+  const char* cmdline;      /* command line that current process will execute */
 
   struct list_elem elem;    /* element for thread.child_list */
 
-  bool waiting;             /* indicates whether parent process is waiting on this. */
-  bool exited;              /* indicates whether the process is done (exited). */
-                            // TODO: use state enums (STOPPED, RUNNING, READY, ZOMBIE, ...)
-  int32_t exitcode;         /* the exit code passed from exit(), when exited = true */
+  bool waiting;             /* if parent process is waiting on current thread. */
+  bool exited;              /* if current is exited */
+  int32_t exitcode;         /* the exit code */
 
   /* Synchronization */
   struct semaphore sema_initialization;   /* the semaphore used between start_process() and process_execute() */

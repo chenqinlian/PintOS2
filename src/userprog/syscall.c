@@ -30,12 +30,6 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-// in case of invalid memory access, fail and exit.
-static int fail_invalid_access(void) {
-  sys_exit (-1);
-  NOT_REACHED();
-}
-
 static void
 syscall_handler (struct intr_frame *f)
 {

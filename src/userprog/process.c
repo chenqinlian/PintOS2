@@ -607,7 +607,7 @@ arguments_to_stack (char *file_name, void **esp)
   //Step2: push each argv[i] to its *esp address, record esp address
 
   char  *argv_address[DEFAULT_ARGV];
-  int temp = *esp;
+  int temp = *(int **)esp;
   
   //printf("step2: esp_cql: %x\n", *esp);
   for(int i=0; i<argc; i++){
@@ -623,7 +623,7 @@ arguments_to_stack (char *file_name, void **esp)
      //printf("step2, argv_address[i]:%x\n", argv_address[i]);
   }
 
-  *esp = temp;
+  *esp = (void *)temp;
 
 
   //Step3: Considering white space for word align (*esp % WORD_SIZE) 
