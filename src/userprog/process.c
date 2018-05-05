@@ -136,20 +136,7 @@ start_process (void *pcb_)
 int
 process_wait (tid_t child_tid) 
 {
-  /*
-   int dummy = 0, i;
-   for(i=0; i<1 * 10000 * 10000; ++i) dummy += i;
-   ASSERT(dummy != 0);
-
-  return -1;
-  */
-
   
-  struct thread *t = thread_current ();      // To be simplified
-  struct list *child_list = &(t->child_list);// To be simplified
-
-
-
   struct process_control_block *child_toexit = NULL;
   struct list_elem *list_elem_toremove = NULL;
 
