@@ -181,11 +181,10 @@ void getchild(struct list *child_list, struct process_control_block **child_pcb_
     //printf("%d\n", child_tid);
     //printf("%d\n", pcb->pid);
 
-    if(pcb->pid == child_tid) { // OK, the direct child found
+    if(pcb->pid == child_tid) {
       //printf("findit\n");
       *child_pcb_pointer = pcb;
       *it_pointer = iter;
-      //break;
     }
   }
 
