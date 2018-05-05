@@ -136,6 +136,15 @@ start_process (void *pcb_)
 int
 process_wait (tid_t child_tid) 
 {
+  /*
+   int dummy = 0, i;
+   for(i=0; i<1 * 10000 * 10000; ++i) dummy += i;
+   ASSERT(dummy != 0);
+
+  return -1;
+  */
+
+  
   struct thread *t = thread_current ();
   struct list *child_list = &(t->child_list);
 
@@ -181,6 +190,7 @@ process_wait (tid_t child_tid)
   ASSERT (it != NULL);
   list_remove (it);
   return child_pcb->exitcode;
+
 
 }
 

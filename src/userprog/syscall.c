@@ -74,10 +74,20 @@ syscall_handler (struct intr_frame *f)
 
   case SYS_EXEC: // 2
     {
+
       void* cmdline = *(char **)(f->esp+4);
 
-      //check_valid_string(cmdline);
-      //TODO: add check
+
+
+      //check buffer
+      check_buffer(f->esp+4, sizeof(cmdline));
+
+      //check cmdline
+      if( get_user((const uint8_t *)cmdline)<0){
+        sys_badmemory_access();
+      }
+
+      //printf("cmdline:%s\n", (const char*) cmdline);
 
       int return_code = sys_exec((const char*) cmdline);
       f->eax = (uint32_t) return_code;
