@@ -149,10 +149,11 @@ process_wait (tid_t child_tid)
   struct list *child_list = &(t->child_list);// To be simplified
 
 
+
   struct process_control_block *child_toexit = NULL;
   struct list_elem *list_elem_toremove = NULL;
 
-  getchild(child_list, child_toexit, list_elem_toremove);
+  getchild(child_list, child_toexit, list_elem_toremove, child_tid);
 
   //fail to get child_to_exit
   if(child_toexit==NULL || list_elem_toremove==NULL){
@@ -224,11 +225,24 @@ process_wait (tid_t child_tid)
   
 }
 
-void getchild(struct list *child_list, struct process_control_block *child_toexit, struct list_elem *list_elem_toremove){
+void getchild(struct list *child_list, struct process_control_block *child_toexit, struct list_elem *list_elem_toremove, tid_t child_tid){
 
+  struct list_elem *iter = NULL;
 
+  if(list_empty(child_list)){
+    return;
+  }
 
+  for (iter = list_front(child_list); iter != list_end(child_list); iter = list_next(iter)) {
+    struct process_control_block *pcb_iter = list_entry(iter, struct process_control_block, elem);  
+  
+    //get child
+    if(pcb_iter->pid = child_tid){
+      child_toexit = pcb_iter;
+      list_elem_toremove = iter;
+    } 
 
+  }
 
   return;
 }
