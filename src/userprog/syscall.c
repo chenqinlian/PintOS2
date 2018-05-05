@@ -65,25 +65,29 @@ syscall_handler (struct intr_frame *f)
   case SYS_HALT:
     {
       shutdown_power_off();
-
+      break;
     }
 
   case SYS_EXIT:
     {
-      int exitcode;
-      if (memread_user(f->esp + 4, &exitcode, sizeof(exitcode)) == -1)
-        fail_invalid_access();
+      int exitcode = *(int *)(f->esp + 4);
+
+      //TODO: need fix
+      if(exitcode<-1000){
+        sys_badmemory_access();
+      }
+     
 
       sys_exit(exitcode);
-      NOT_REACHED();
       break;
     }
 
   case SYS_EXEC: // 2
     {
-      void* cmdline;
-      if (memread_user(f->esp + 4, &cmdline, sizeof(cmdline)) == -1)
-        fail_invalid_access();
+      void* cmdline = *(char **)(f->esp+4);
+
+      //check_valid_string(cmdline);
+      //TODO: add check
 
       int return_code = sys_exec((const char*) cmdline);
       f->eax = (uint32_t) return_code;
