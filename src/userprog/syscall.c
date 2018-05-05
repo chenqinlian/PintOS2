@@ -7,27 +7,16 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-#ifdef DEBUG
-#define _DEBUG_PRINTF(...) printf(__VA_ARGS__)
-#else
-#define _DEBUG_PRINTF(...) /* do nothing */
-#endif
-
 static void syscall_handler (struct intr_frame *);
-
-static int memread_user (void *src, void *des, size_t bytes);
-
-void sys_halt (void);
-void sys_exit (int);
-pid_t sys_exec (const char *cmdline);
-int sys_wait(pid_t pid);
-
-
 
 
 //help function
 int sys_badmemory_access(void);
 void sys_write(int fd, const void *buffer, unsigned size);
+void sys_halt (void);
+void sys_exit (int);
+pid_t sys_exec (const char *cmdline);
+int sys_wait(pid_t pid);
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -218,39 +207,6 @@ void sys_write(int fd, const void *buffer, unsigned size){
 
 /****************** Helper Functions on Memory Access ********************/
 
-static int32_t
-get_user (const uint8_t *uaddr) {
-  // check that a user pointer `uaddr` points below PHYS_BASE
-  if (! ((void*)uaddr < PHYS_BASE)) {
-    // TODO distinguish with result -1 (convert into another handler)
-    return -1; // invalid memory access
-  }
-
-  // as suggested in the reference manual, see (3.1.5)
-  int result;
-  asm ("movl $1f, %0; movzbl %1, %0; 1:"
-      : "=&a" (result) : "m" (*uaddr));
-  return result;
-}
-
-/**
- * Reads a consecutive `bytes` bytes of user memory with the
- * starting address `src` (uaddr), and writes to dst.
- * Returns the number of bytes read, or -1 on page fault (invalid memory access)
- */
-static int
-memread_user (void *src, void *dst, size_t bytes)
-{
-  int32_t value;
-  size_t i;
-  for(i=0; i<bytes; i++) {
-    value = get_user(src + i);
-    if(value < 0) return -1; // invalid memory access.
-    *(char*)(dst + i) = value & 0xff;
-  }
-  return (int)bytes;
-}
-
 bool
 check_addr(const uint8_t *uaddr){
   if ((void*)uaddr > PHYS_BASE){
@@ -275,5 +231,13 @@ check_buffer (void* buffer, unsigned size){
     }
 
   return true;
+}
+
+static int
+get_user (const uint8_t *uaddr) {
+   int result;
+   asm ("movl $1f, %0; movzbl %1, %0; 1:"
+       : "=&a" (result) : "m" (*uaddr));
+   return result;
 }
 
