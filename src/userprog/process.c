@@ -153,8 +153,9 @@ process_wait (tid_t child_tid)
   struct process_control_block *child_toexit = NULL;
   struct list_elem *list_elem_toremove = NULL;
 
-  getchild(child_list, child_toexit, list_elem_toremove, child_tid);
+  //getchild(child_list, child_toexit, list_elem_toremove, child_tid);
 
+  /*
   //fail to get child_to_exit
   if(child_toexit==NULL || list_elem_toremove==NULL){
     return -1;
@@ -175,13 +176,17 @@ process_wait (tid_t child_tid)
   }
 
   return -1;
- 
-  /*
+  
+  */
+
+
 
   // lookup the process with tid equals 'child_tid' from 'child_list'
   struct process_control_block *child_pcb = NULL;
   struct list_elem *it = NULL;
-
+  
+  
+  /*
   if (!list_empty(child_list)) {
     for (it = list_front(child_list); it != list_end(child_list); it = list_next(it)) {
       struct process_control_block *pcb = list_entry(
@@ -193,6 +198,11 @@ process_wait (tid_t child_tid)
       }
     }
   }
+  */
+
+  getchild(child_list, &child_pcb, &it, child_tid);
+
+  //printf("is child_pcb null outside?%d\n",child_pcb==NULL);
 
   // if child process is not found, return -1 immediately
   if (child_pcb == NULL) {
@@ -220,13 +230,31 @@ process_wait (tid_t child_tid)
   ASSERT (it != NULL);
   list_remove (it);
   return child_pcb->exitcode;
-  */
-
-  
+    
 }
 
-void getchild(struct list *child_list, struct process_control_block *child_toexit, struct list_elem *list_elem_toremove, tid_t child_tid){
+void getchild(struct list *child_list, struct process_control_block **child_pcb_pointer, struct list_elem **it_pointer, tid_t child_tid){
 
+  struct list_elem *iter = NULL;
+
+  if (!list_empty(child_list)) {
+    //printf("yes!\n");
+    for (iter = list_front(child_list); iter != list_end(child_list); iter = list_next(iter)) {
+      struct process_control_block *pcb = list_entry(iter, struct process_control_block, elem);
+      //printf("%d\n", child_tid);
+      //printf("%d\n", pcb->pid);
+      if(pcb->pid == child_tid) { // OK, the direct child found
+        //printf("findit\n");
+        *child_pcb_pointer = pcb;
+        *it_pointer = iter;
+        break;
+      }
+    }
+  }
+
+  //printf("is child_pcb null?%d\n",*child_pcb_pointer==NULL);
+
+  /*
   struct list_elem *iter = NULL;
 
   if(list_empty(child_list)){
@@ -243,7 +271,7 @@ void getchild(struct list *child_list, struct process_control_block *child_toexi
     } 
 
   }
-
+  */
   return;
 }
 
