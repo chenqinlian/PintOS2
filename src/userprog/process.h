@@ -15,6 +15,9 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
+/* Help function for process_wait*/
+void getchild(struct list *child_list, struct process_control_block *child_toexit, struct list_elem *list_elem_toremove);
+
 /* PCB : see initialization at process_execute(). */
 struct process_control_block {
 

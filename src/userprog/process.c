@@ -145,8 +145,37 @@ process_wait (tid_t child_tid)
   */
 
   
-  struct thread *t = thread_current ();
-  struct list *child_list = &(t->child_list);
+  struct thread *t = thread_current ();      // To be simplified
+  struct list *child_list = &(t->child_list);// To be simplified
+
+
+  struct process_control_block *child_toexit = NULL;
+  struct list_elem *list_elem_toremove = NULL;
+
+  getchild(child_list, child_toexit, list_elem_toremove);
+
+  //fail to get child_to_exit
+  if(child_toexit==NULL || list_elem_toremove==NULL){
+    return -1;
+  }
+  //succeed to get child_to_exit
+  if(child_toexit->exited){
+    return -1;
+  }
+
+  if(child_toexit->waiting){
+    return -1;
+  }
+  else{
+    sema_down(& (child_toexit->sema_wait));
+    child_toexit->waiting = true;
+    list_remove(list_elem_toremove);
+    return child_toexit->exitcode;
+  }
+
+  return -1;
+ 
+  /*
 
   // lookup the process with tid equals 'child_tid' from 'child_list'
   struct process_control_block *child_pcb = NULL;
@@ -190,9 +219,20 @@ process_wait (tid_t child_tid)
   ASSERT (it != NULL);
   list_remove (it);
   return child_pcb->exitcode;
+  */
 
-
+  
 }
+
+void getchild(struct list *child_list, struct process_control_block *child_toexit, struct list_elem *list_elem_toremove){
+
+
+
+
+
+  return;
+}
+
 
 /* Free the current process's resources. */
 void
