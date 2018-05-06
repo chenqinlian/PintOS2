@@ -22,6 +22,7 @@ bool sys_remove(char *filename);
 int sys_open(char *filename);
 void sys_close(int fdnumber);
 void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, int fdnumber);
+static struct file_descriptor* find_file_desc(struct thread *t, int fd);
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -318,78 +319,75 @@ bool sys_remove(char *filename){
 
 }
 
-int sys_open(char *filename){
+int sys_open(char* file) {
 
-  //read file being open  
-  struct file* fileopen = filesys_open(filename);
-
-  //load file descriptor
-  struct thread *t = thread_current();
-  struct file_descriptor *fd =  malloc(sizeof(struct file_descriptor));//palloc_get_page(0);
-
-  //read current thread's file descriptor list
-  struct list *fd_list = &(t->file_descriptors);
-
-  if(fileopen!=NULL){
-
-    //printf("fileopened!\n");
-    
-
-    //TODO: put fd to fd_list, check if there is repeat fd
-
-      //fd_inlist = getfd(fd_list,fd);
-    
-
-
-    fd->fd_number =  3;
-
-       
-
-
-
-    list_push_back(fd_list, &(fd->elem));
-   
-    printf("sys_open,add file. fd_number:%d\n",fd->fd_number);
-    
-    return fd->fd_number;
-
+  struct file* file_opened;
+  struct file_descriptor* fd = palloc_get_page(0);
+  if (!fd) {
+    return -1;
   }
 
 
+  file_opened = filesys_open(file);
+  if (!file_opened) {
+    palloc_free_page (fd);
 
-  return -1;
+    return -1;
+  }
+
+  fd->file = file_opened; //file save
+
+  struct list* fd_list = &thread_current()->file_descriptors;
+  if (list_empty(fd_list)) {
+    // 0, 1, 2 are reserved for stdin, stdout, stderr
+    fd->fd_number = 3;
+  }
+  else {
+    fd->fd_number = (list_entry(list_back(fd_list), struct file_descriptor, elem)->fd_number) + 1;
+  }
+  list_push_back(fd_list, &(fd->elem));
+
+
+  return fd->fd_number;
+}
+
+void sys_close(int fd) {
+
+  struct file_descriptor* file_d = find_file_desc(thread_current(), fd);
+
+  if(file_d && file_d->file) {
+    file_close(file_d->file);
+    list_remove(&(file_d->elem));
+    palloc_free_page(file_d);
+  }
 
 }
 
-void sys_close(int fdnumber){
+static struct file_descriptor*
+find_file_desc(struct thread *t, int fd)
+{
+  ASSERT (t != NULL);
 
-  if(fdnumber<3){
-    return;
+  if (fd < 3) {
+    return NULL;
   }
 
-  struct file_descriptor *fd_toremove = NULL;
+  struct list_elem *e;
 
-  //read curreent thread's file descriptor list
-  struct thread *t = thread_current();
-  struct list *fd_list = &(t->file_descriptors);
-
-
-  printf("sys_close,fd_number%d\n", fdnumber);
-
-
-  getfd(fd_list, &fd_toremove, fdnumber);  
-
-
-
-
-
-  if(fd_toremove!=NULL && !list_empty(fd_list)){
-    file_close(fd_toremove->file);
-    list_remove(&(fd_toremove->elem));
+  if (! list_empty(&t->file_descriptors)) {
+    for(e = list_begin(&t->file_descriptors);
+        e != list_end(&t->file_descriptors); e = list_next(e))
+    {
+      struct file_descriptor *desc = list_entry(e, struct file_descriptor, elem);
+      if(desc->fd_number == fd) {
+        return desc;
+      }
+    }
   }
 
-  return;
+  return NULL; // not found
 }
+
 
 void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, int fdnumber){
 
