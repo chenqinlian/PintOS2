@@ -4,8 +4,6 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "synch.h"
-#include "threads/fixed-point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -25,8 +23,6 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define PRI_DONATION_MAX_DEPTH 8        /* Highest priority. */
-
 
 /* A kernel thread or user process.
 
@@ -91,23 +87,11 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Priority, may be updated later */
-    int InitialPriority;		/* Priority given at the beginning*/
-
+    int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-
-    struct list locks;			/*Task1.2, list of locks held by current thread*/
-    struct lock *LockWaitOn;   		/*Task1.2, The lock current thread is waiting on*/
-
-
-    int64_t WakeupTime;			/* wakeup time*/
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
-    /*  advanced scheduler  */
-    int nice;                           /* Task1.3,  nice value   */
-    fixed_t recent_cpu;                 /* Task1.3,  recent_cpu  */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -157,39 +141,5 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
-/* check whether there exist priority donation when a thread is waiting on a lock*/
-void check_priority_donation(struct thread *t, struct lock *lock);
-
-/* update thread attributes when a thread hold a new lock*/
-void thread_update_new_lock(struct thread *t, struct lock *lock);
-
-/* update thread attributes when a thread delete a lock*/
-void thread_delete_new_lock(struct thread *t, struct lock *lock);
-
-/*update thread priority if there is change in lock list*/
-void thread_update_priority_from_locks(struct thread *t);
-
-/* check the change of current thread's priority to see if preemption is necessary*/
-void thread_check_preemption();
-
-
-/* Comparator of two threads' wakeup time when being ordered in a list*/
-bool thread_wakeuptime_comparator(const struct list_elem *e1, const struct list_elem *e2, void *aux);
-
-/* Comparator of two threads' priority when being ordered in a list*/
-bool thread_priority_comparator(const struct list_elem *e1, const struct list_elem *e2, void *aux);
-
-/* Every timer tick, recent_cpu is incremented by 1 for the running thread */
-void thread_update_recent_cpu();
-
-/* Every 4th tick, Priority is recalculated for each thread. Need foreach this function when excuting */
-void thread_update_priority_each(struct thread *t);
-
-/* Every second, recent cpu is recalculated for each thread. Need foreach this function when excuting*/
-void thread_update_recent_cpu_each(struct thread *t, void *aux);
-
-/* Every second, load_avg is recalculated*/
-void scheduler_update_load_avg();
 
 #endif /* threads/thread.h */

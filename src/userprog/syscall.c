@@ -185,24 +185,10 @@ syscall_handler (struct intr_frame *f)
 
   case SYS_WRITE:
     {
-      if (!check_addr(f->esp+4)){
-        thread_exit();
-      }
-      if (!check_addr(f->esp+8)){
-        thread_exit();
-      }
-      if (!check_addr(f->esp+12)){
-        thread_exit();
-      }
 
       int fd = *(int *)(f->esp+4);
       void *buffer = (void *)(f->esp+8);
       size_t size = *(size_t *)(f->esp+12);
-
-
-      if(!check_buffer (buffer, size)){
-        thread_exit();
-      }
 
       int return_code = sys_write(fd, buffer, size);
       f->eax= return_code;
@@ -278,15 +264,14 @@ int sys_wait(pid_t pid) {
 
 int sys_write(int fd, const void *buffer, unsigned size){
     
-      if(!check_buffer ((void *)buffer, size)){
-        thread_exit();
-      }
       
-      printf("sys_write\n");
-      printf("fd_numer:%d\n",fd);
+      //printf("sys_write\n");
+      //printf("fd_numer:%d\n",fd);
+																																																																																																																																																																				
+      //printf("size:%d\n",size);
 
       //Case1: print to screem
-      if(fd == 1)
+      if(fd == STDOUT_FILENO)
       {
         putbuf (*(char **)buffer, size);
         return size;
@@ -305,7 +290,9 @@ int sys_write(int fd, const void *buffer, unsigned size){
         getfd(fd_list, &file_towrite,fd); 
 
         if(!list_empty(fd_list) && file_towrite && file_towrite->file) {
-          int return_code = file_write(file_towrite->file, buffer, size);
+          int return_code = file_write(file_towrite->file, *(char **)buffer, size);
+          //return 239;
+          return return_code; 
         }
 
 
@@ -349,7 +336,7 @@ int sys_open(char* filename) {
     struct list* fd_list = &thread_current()->file_descriptors;
     if (list_empty(fd_list)) {
       // 0, 1, 2 are reserved for stdin, stdout, stderr
-      fd->fd_number = (int)FD_BASE;
+      fd->fd_number = 3;
     }
     else {
       fd->fd_number = (list_entry(list_back(fd_list), struct file_descriptor, elem)->fd_number) + 1;
