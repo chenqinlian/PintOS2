@@ -114,6 +114,7 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct process_control_block *pcb;  /* Process Control Block */
     struct list child_list;
+    struct list file_descriptors;
 
 #endif
 

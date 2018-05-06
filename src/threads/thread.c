@@ -508,8 +508,13 @@ init_thread (struct thread *t, const char *name, int priority)
 
   #ifdef USERPROG
     // init process-related informations.
+    // wait/exit-related syscall
     list_init(&t->child_list);
     t->pcb = NULL;
+
+    // init file-related syscall
+    list_init(&t->file_descriptors);
+
   #endif
 
 

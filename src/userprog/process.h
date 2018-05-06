@@ -37,4 +37,20 @@ struct process_control_block {
 
 };
 
+struct file_descriptor{
+  int    fd_number;		/* fd number of the file. 
+				   fd=0  stdin
+				   fd=1  stdout
+				   fd=2  stderror
+				   fd=3  open
+				   fd=4  
+				*/
+				
+  tid_t  owner;			/* tid_t of current thread operating this file*/
+  struct file* file;            /* file */
+  struct list_elem elem;        /* element for thread.filedescriptors*/
+
+};
+
+
 #endif /* userprog/process.h */
