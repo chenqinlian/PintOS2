@@ -12,7 +12,7 @@ static void syscall_handler (struct intr_frame *);
 
 //help function
 int sys_badmemory_access(void);
-void sys_write(int fd, const void *buffer, unsigned size);
+int sys_write(int fd, const void *buffer, unsigned size);
 void sys_halt (void);
 void sys_exit (int);
 pid_t sys_exec (const char *cmdline);
@@ -204,10 +204,8 @@ syscall_handler (struct intr_frame *f)
         thread_exit();
       }
 
-      sys_write(fd, buffer, size);
-
-      //TODO:
-      //f->eax= ?
+      int return_code = sys_write(fd, buffer, size);
+      f->eax= return_code;
 
       break;
     }
@@ -278,18 +276,20 @@ int sys_wait(pid_t pid) {
   return process_wait(pid);
 }
 
-void sys_write(int fd, const void *buffer, unsigned size){
+int sys_write(int fd, const void *buffer, unsigned size){
     
       if(!check_buffer ((void *)buffer, size)){
         thread_exit();
       }
       
+      printf("sys_write\n");
+      printf("fd_numer:%d\n",fd);
 
       //Case1: print to screem
       if(fd == 1)
       {
         putbuf (*(char **)buffer, size);
-        return;
+        return size;
       }
     
       //Case2: print to file 
@@ -297,6 +297,19 @@ void sys_write(int fd, const void *buffer, unsigned size){
         //TODO
 
 
+        struct file_descriptor* file_towrite = NULL;
+
+        struct thread *t = thread_current();  
+        struct list *fd_list = &(t->file_descriptors);
+  
+        getfd(fd_list, &file_towrite,fd); 
+
+        if(!list_empty(fd_list) && file_towrite && file_towrite->file) {
+          int return_code = file_write(file_towrite->file, buffer, size);
+        }
+
+
+        return -1;
 
       }
 
