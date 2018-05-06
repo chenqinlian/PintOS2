@@ -18,7 +18,7 @@ void sys_exit (int);
 pid_t sys_exec (const char *cmdline);
 int sys_wait(pid_t pid);
 bool sys_create(char *filename, unsigned filesize);
-
+bool sys_remove(char *filename);
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -136,7 +136,26 @@ syscall_handler (struct intr_frame *f)
     }
 
 
-  case SYS_REMOVE:
+  case SYS_REMOVE:{
+
+      //check whether pointer is below PHYS_BASE
+      if(!check_buffer(f->esp+4, sizeof(char*))){
+        sys_badmemory_access();
+      } 
+
+      char* filename = *(char **)(f->esp+4);
+
+      //check valid memory access
+      if( get_user((const uint8_t *)filename)<0){
+        sys_badmemory_access();
+      }
+
+      int return_code = sys_remove(filename);
+      f->eax = return_code;
+      
+
+  }
+
   case SYS_OPEN:
   case SYS_FILESIZE:
   case SYS_READ:
@@ -248,6 +267,18 @@ bool sys_create(char *filename, unsigned filesize){
 
   return return_code;
 }
+
+bool sys_remove(char *filename){
+  bool return_code = false;
+
+  return_code = filesys_remove(filename);
+
+  return return_code;
+
+}
+
+
+
 
 /****************** Helper Functions on Memory Access ********************/
 
