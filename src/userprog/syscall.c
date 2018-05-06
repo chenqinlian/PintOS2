@@ -319,36 +319,38 @@ bool sys_remove(char *filename){
 
 }
 
-int sys_open(char* file) {
+int sys_open(char* filename) {
 
-  struct file* file_opened;
-  struct file_descriptor* fd = palloc_get_page(0);
-  if (!fd) {
-    return -1;
+  struct file* file_opened = filesys_open(filename);;
+
+  struct file_descriptor* fd = malloc(sizeof(struct file_descriptor));
+
+
+
+  if (file_opened!=NULL) {
+
+    //TODO:rewrite sys_open
+
+    fd->file = file_opened; //file save
+
+    struct list* fd_list = &thread_current()->file_descriptors;
+    if (list_empty(fd_list)) {
+      // 0, 1, 2 are reserved for stdin, stdout, stderr
+      fd->fd_number = (int)FD_BASE;
+    }
+    else {
+      fd->fd_number = (list_entry(list_back(fd_list), struct file_descriptor, elem)->fd_number) + 1;
+    }
+    list_push_back(fd_list, &(fd->elem));
+
+    return fd->fd_number;
   }
 
+  //palloc_free_page (fd);
 
-  file_opened = filesys_open(file);
-  if (!file_opened) {
-    palloc_free_page (fd);
-
-    return -1;
-  }
-
-  fd->file = file_opened; //file save
-
-  struct list* fd_list = &thread_current()->file_descriptors;
-  if (list_empty(fd_list)) {
-    // 0, 1, 2 are reserved for stdin, stdout, stderr
-    fd->fd_number = 3;
-  }
-  else {
-    fd->fd_number = (list_entry(list_back(fd_list), struct file_descriptor, elem)->fd_number) + 1;
-  }
-  list_push_back(fd_list, &(fd->elem));
+  return -1;
 
 
-  return fd->fd_number;
 }
 
 void sys_close(int fd) {
@@ -364,7 +366,6 @@ void sys_close(int fd) {
   if(!list_empty(fd_list) && file_toclose && file_toclose->file) {
     file_close(file_toclose->file);
     list_remove(&(file_toclose->elem));
-
   }
 
   return;
