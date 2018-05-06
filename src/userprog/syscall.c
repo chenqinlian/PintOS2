@@ -20,6 +20,8 @@ int sys_wait(pid_t pid);
 bool sys_create(char *filename, unsigned filesize);
 bool sys_remove(char *filename);
 int sys_open(char *filename);
+void sys_close(int fdnumber);
+void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, int fdnumber);
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -212,6 +214,28 @@ syscall_handler (struct intr_frame *f)
   case SYS_SEEK:
   case SYS_TELL:
   case SYS_CLOSE:
+    {
+      if(!check_buffer(f->esp+4, sizeof(char*))){
+        sys_badmemory_access();
+      } 
+
+      char* filename = *(char **)(f->esp+4);
+
+      //check valid memory access
+      if( get_user((const uint8_t *)filename)<0){
+        sys_badmemory_access();
+      }
+
+
+      printf("sys_close,fdnumber%s\n", filename);
+
+      int fdnumber=0;//need fix
+      sys_close(fdnumber);
+
+      break;
+
+    }
+
 
   /* unhandled case */
   default:
@@ -315,10 +339,12 @@ int sys_open(char *filename){
 
     //TODO: put fd to fd_list, check if there is repeat fd
 
-      //fd_inlist = getfromlist(fd_list,fd);
- 
+      //fd_inlist = getfd(fd_list,fd);
+    
+    fd->fd_number =  3;
+    list_push_back(fd_list, &(fd->elem));
 
-    return 1000;
+    return fd->fd_number;
 
   }
 
@@ -328,7 +354,47 @@ int sys_open(char *filename){
 
 }
 
+void sys_close(int fdnumber){
 
+  if(fdnumber<3){
+    return;
+  }
+
+  struct file_descriptor *fd_toremove = NULL;
+
+  //read curreent thread's file descriptor list
+  struct thread *t = thread_current();
+  struct list *fd_list = &(t->file_descriptors);
+
+
+  getfd(fd_list, &fd_toremove, fdnumber);  
+
+  if(fd_toremove!=NULL && !list_empty(fd_list)){
+    file_close(fd_toremove->file);
+    list_remove(&(fd_toremove->elem));
+  }
+
+}
+
+void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, int fdnumber){
+
+  struct list_elem *iter = NULL;
+ 
+
+  if(list_empty(fd_list)){
+    return;
+  }
+
+  for (iter = list_front(fd_list); iter != list_end(fd_list); iter = list_next(fd_list)){
+    struct file_descriptor *fd_temp = list_entry(iter, struct file_descriptor, elem);
+    if(fd_temp->fd_number == fdnumber){
+      *fd_toremove_pointer = fd_temp;
+    }
+  }
+ 
+
+  return;
+}
 
 /****************** Helper Functions on Memory Access ********************/
 
