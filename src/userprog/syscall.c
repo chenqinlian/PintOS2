@@ -19,6 +19,7 @@ pid_t sys_exec (const char *cmdline);
 int sys_wait(pid_t pid);
 bool sys_create(char *filename, unsigned filesize);
 bool sys_remove(char *filename);
+int sys_open(char *filename);
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -153,10 +154,28 @@ syscall_handler (struct intr_frame *f)
       int return_code = sys_remove(filename);
       f->eax = return_code;
       
-
+      break;
   }
 
-  case SYS_OPEN:
+  case SYS_OPEN:{
+      //check whether pointer is below PHYS_BASE
+      if(!check_buffer(f->esp+4, sizeof(char*))){
+        sys_badmemory_access();
+      } 
+
+      char* filename = *(char **)(f->esp+4);
+
+      //check valid memory access
+      if( get_user((const uint8_t *)filename)<0){
+        sys_badmemory_access();
+      }
+
+      int return_code = sys_open(filename);
+      f->eax = return_code;
+      
+      break;
+  }
+
   case SYS_FILESIZE:
   case SYS_READ:
     goto unhandled;
@@ -277,6 +296,37 @@ bool sys_remove(char *filename){
 
 }
 
+int sys_open(char *filename){
+
+  //read file being open  
+  struct file* fileopen = filesys_open(filename);
+
+  //load file descriptor
+  struct thread *t = thread_current();
+  struct file_descriptor *fd =  malloc(sizeof(struct file_descriptor));//palloc_get_page(0);
+
+  //read current thread's file descriptor list
+  struct list *fd_list = &(t->file_descriptors);
+
+  if(fileopen!=NULL){
+
+    //printf("fileopened!\n");
+    
+
+    //TODO: put fd to fd_list, check if there is repeat fd
+
+      //fd_inlist = getfromlist(fd_list,fd);
+ 
+
+    return 1000;
+
+  }
+
+
+
+  return -1;
+
+}
 
 
 
