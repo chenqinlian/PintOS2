@@ -215,21 +215,19 @@ syscall_handler (struct intr_frame *f)
   case SYS_TELL:
   case SYS_CLOSE:
     {
-      if(!check_buffer(f->esp+4, sizeof(char*))){
+      if(!check_buffer(f->esp+4, sizeof(int))){
         sys_badmemory_access();
       } 
 
-      char* filename = *(char **)(f->esp+4);
+      int fdnumber = *(int *)(f->esp+4);
 
       //check valid memory access
-      if( get_user((const uint8_t *)filename)<0){
+      if( get_user((const uint8_t *)(f->esp+4))<0){
         sys_badmemory_access();
       }
 
-
-      printf("sys_close,fdnumber%s\n", filename);
-
-      int fdnumber=0;//need fix
+      //printf("sys_close,fd_number%d\n", fdnumber);
+      
       sys_close(fdnumber);
 
       break;
@@ -341,9 +339,18 @@ int sys_open(char *filename){
 
       //fd_inlist = getfd(fd_list,fd);
     
-    fd->fd_number =  3;
-    list_push_back(fd_list, &(fd->elem));
 
+
+    fd->fd_number =  3;
+
+       
+
+
+
+    list_push_back(fd_list, &(fd->elem));
+   
+    printf("sys_open,add file. fd_number:%d\n",fd->fd_number);
+    
     return fd->fd_number;
 
   }
@@ -367,13 +374,21 @@ void sys_close(int fdnumber){
   struct list *fd_list = &(t->file_descriptors);
 
 
+  printf("sys_close,fd_number%d\n", fdnumber);
+
+
   getfd(fd_list, &fd_toremove, fdnumber);  
+
+
+
+
 
   if(fd_toremove!=NULL && !list_empty(fd_list)){
     file_close(fd_toremove->file);
     list_remove(&(fd_toremove->elem));
   }
 
+  return;
 }
 
 void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, int fdnumber){
@@ -385,11 +400,17 @@ void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, i
     return;
   }
 
+  printf("..getfd,list not empty\n");
+  
   for (iter = list_front(fd_list); iter != list_end(fd_list); iter = list_next(fd_list)){
+
+    printf("..getfd,itering\n");
+    /*
     struct file_descriptor *fd_temp = list_entry(iter, struct file_descriptor, elem);
     if(fd_temp->fd_number == fdnumber){
       *fd_toremove_pointer = fd_temp;
     }
+    */
   }
  
 
