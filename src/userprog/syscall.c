@@ -17,6 +17,8 @@ void sys_halt (void);
 void sys_exit (int);
 pid_t sys_exec (const char *cmdline);
 int sys_wait(pid_t pid);
+bool sys_create(char *filename, unsigned filesize);
+
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -97,13 +99,35 @@ syscall_handler (struct intr_frame *f)
 
       pid_t pid = *(int *)(f->esp+4);
 
-      int return_code = sys_wait(pid);
+      bool return_code = sys_wait(pid);
 
       f->eax = return_code;
       break;
     }
 
   case SYS_CREATE:
+    {
+
+      if(!check_buffer(f->esp+4, sizeof(char*))){
+        sys_badmemory_access();
+      } 
+
+      if(!check_buffer(f->esp+8, sizeof(unsigned))){
+        sys_badmemory_access();
+      } 
+
+      char* filename = *(char *)(f->esp+4);
+      unsigned filesize = *(unsigned *)(f->esp+8);
+      
+      //printf("filename:%s\n",filename);
+      //printf("filesize:%d\n",filesize);
+
+      int return_code = sys_create(filename, filesize);
+      f->eax = return_code;
+
+    }
+
+
   case SYS_REMOVE:
   case SYS_OPEN:
   case SYS_FILESIZE:
@@ -207,6 +231,14 @@ void sys_write(int fd, const void *buffer, unsigned size){
 
       }
 
+}
+
+bool sys_create(char *filename, unsigned filesize){
+  bool return_code = false;
+
+  return_code = filesys_create(filename, filesize);
+
+  return return_code;
 }
 
 /****************** Helper Functions on Memory Access ********************/
