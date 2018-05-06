@@ -22,7 +22,7 @@ bool sys_remove(char *filename);
 int sys_open(char *filename);
 void sys_close(int fdnumber);
 void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, int fdnumber);
-static struct file_descriptor* find_file_desc(struct thread *t, int fd);
+void find_file_desc(struct thread *t, struct file_descriptor **mrright, int fd);
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -352,8 +352,8 @@ int sys_open(char* file) {
 }
 
 void sys_close(int fd) {
-
-  struct file_descriptor* file_d = find_file_desc(thread_current(), fd);
+  struct file_descriptor* file_d = NULL;
+  find_file_desc(thread_current(), &file_d,fd);  
 
   if(file_d && file_d->file) {
     file_close(file_d->file);
@@ -363,15 +363,14 @@ void sys_close(int fd) {
 
 }
 
-static struct file_descriptor*
-find_file_desc(struct thread *t, int fd)
+void find_file_desc(struct thread *t, struct file_descriptor **mrright, int fd)
 {
   struct list_elem *iter = NULL;
 
   struct list *fd_list = &(t->file_descriptors);
 
   if(list_empty(fd_list)){
-    return NULL;
+    return;
   }
 
   //printf("..getfd,list not empty\n");
@@ -379,12 +378,17 @@ find_file_desc(struct thread *t, int fd)
     {
       struct file_descriptor *desc = list_entry(iter, struct file_descriptor, elem);
       if(desc->fd_number == fd) {
-        return desc;
+
+        *mrright = desc;
+
+
+        return;
+   
       }
     }
 
 
-  return NULL;
+  return;
 }
 
 
