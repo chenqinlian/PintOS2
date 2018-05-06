@@ -21,8 +21,8 @@ bool sys_create(char *filename, unsigned filesize);
 bool sys_remove(char *filename);
 int sys_open(char *filename);
 void sys_close(int fdnumber);
-void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, int fdnumber);
-void find_file_desc(struct thread *t, struct file_descriptor **mrright, int fd);
+//void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, int fdnumber);
+void getfd(struct list *fd_list, struct file_descriptor **mrright, int fd);
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -352,22 +352,27 @@ int sys_open(char* file) {
 }
 
 void sys_close(int fd) {
-  struct file_descriptor* file_d = NULL;
-  find_file_desc(thread_current(), &file_d,fd);  
 
-  if(file_d && file_d->file) {
-    file_close(file_d->file);
-    list_remove(&(file_d->elem));
-    palloc_free_page(file_d);
+  struct file_descriptor* file_toclose = NULL;
+
+  struct thread *t = thread_current();  
+  struct list *fd_list = &(t->file_descriptors);
+  
+  getfd(fd_list, &file_toclose,fd);  
+
+
+  if(!list_empty(fd_list) && file_toclose && file_toclose->file) {
+    file_close(file_toclose->file);
+    list_remove(&(file_toclose->elem));
+
   }
 
+  return;
 }
 
-void find_file_desc(struct thread *t, struct file_descriptor **mrright, int fd)
+void getfd(struct list *fd_list, struct file_descriptor **mrright, int fd)
 {
   struct list_elem *iter = NULL;
-
-  struct list *fd_list = &(t->file_descriptors);
 
   if(list_empty(fd_list)){
     return;
@@ -380,10 +385,7 @@ void find_file_desc(struct thread *t, struct file_descriptor **mrright, int fd)
       if(desc->fd_number == fd) {
 
         *mrright = desc;
-
-
         return;
-   
       }
     }
 
@@ -391,32 +393,6 @@ void find_file_desc(struct thread *t, struct file_descriptor **mrright, int fd)
   return;
 }
 
-
-void getfd(struct list *fd_list, struct file_descriptor **fd_toremove_pointer, int fdnumber){
-
-  struct list_elem *iter = NULL;
- 
-
-  if(list_empty(fd_list)){
-    return;
-  }
-
-  printf("..getfd,list not empty\n");
-  
-  for (iter = list_front(fd_list); iter != list_end(fd_list); iter = list_next(fd_list)){
-
-    printf("..getfd,itering\n");
-    /*
-    struct file_descriptor *fd_temp = list_entry(iter, struct file_descriptor, elem);
-    if(fd_temp->fd_number == fdnumber){
-      *fd_toremove_pointer = fd_temp;
-    }
-    */
-  }
- 
-
-  return;
-}
 
 /****************** Helper Functions on Memory Access ********************/
 
