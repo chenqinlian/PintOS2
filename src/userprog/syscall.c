@@ -366,26 +366,25 @@ void sys_close(int fd) {
 static struct file_descriptor*
 find_file_desc(struct thread *t, int fd)
 {
-  ASSERT (t != NULL);
+  struct list_elem *iter = NULL;
 
-  if (fd < 3) {
+  struct list *fd_list = &(t->file_descriptors);
+
+  if(list_empty(fd_list)){
     return NULL;
   }
 
-  struct list_elem *e;
-
-  if (! list_empty(&t->file_descriptors)) {
-    for(e = list_begin(&t->file_descriptors);
-        e != list_end(&t->file_descriptors); e = list_next(e))
+  //printf("..getfd,list not empty\n");
+  for(iter = list_begin(fd_list);iter != list_end(fd_list); iter = list_next(fd_list))
     {
-      struct file_descriptor *desc = list_entry(e, struct file_descriptor, elem);
+      struct file_descriptor *desc = list_entry(iter, struct file_descriptor, elem);
       if(desc->fd_number == fd) {
         return desc;
       }
     }
-  }
 
-  return NULL; // not found
+
+  return NULL;
 }
 
 
