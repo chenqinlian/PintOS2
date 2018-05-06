@@ -108,6 +108,8 @@ syscall_handler (struct intr_frame *f)
   case SYS_CREATE:
     {
 
+
+      //check whether pointer is below PHYS_BASE
       if(!check_buffer(f->esp+4, sizeof(char*))){
         sys_badmemory_access();
       } 
@@ -116,14 +118,20 @@ syscall_handler (struct intr_frame *f)
         sys_badmemory_access();
       } 
 
-      char* filename = *(char *)(f->esp+4);
-      unsigned filesize = *(unsigned *)(f->esp+8);
+      char* filename = *(char **)(f->esp+4);
+      unsigned filesize = *(unsigned **)(f->esp+8);
       
       //printf("filename:%s\n",filename);
       //printf("filesize:%d\n",filesize);
 
+      //check valid memory access
+      if( get_user((const uint8_t *)filename)<0){
+        sys_badmemory_access();
+      }
+
       int return_code = sys_create(filename, filesize);
       f->eax = return_code;
+      break;
 
     }
 
