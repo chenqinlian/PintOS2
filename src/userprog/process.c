@@ -136,14 +136,14 @@ start_process (void *pcb_)
 int
 process_wait (tid_t child_tid) 
 {
-  
+  /*
   int dummy = 0, i;
   for(i=0; i<1 * 10000 * 10000; ++i) dummy += i;
   ASSERT(dummy != 0);
 
   return -1;  
+  */
   
-  /*
   struct process_control_block *child_toexit = NULL;
   struct list_elem *list_elem_toremove = NULL;
 
@@ -172,7 +172,7 @@ process_wait (tid_t child_tid)
   }
   
   return child_toexit->exitcode;
-  */
+  
 }
 
 void getchild(struct list *child_list, struct process_control_block **child_pcb_pointer, struct list_elem **it_pointer, tid_t child_tid){

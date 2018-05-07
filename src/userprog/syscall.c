@@ -33,6 +33,9 @@ bool check_addr (const uint8_t *uaddr);
 bool check_buffer (void* buffer, unsigned size);
 static int get_user (const uint8_t *uaddr);
 
+static int
+memread_user (void *src, void *dst, size_t bytes);
+
 void
 syscall_init (void)
 {
@@ -190,7 +193,11 @@ syscall_handler (struct intr_frame *f)
   {
       int fd = *(int *)(f->esp+4);
       void *buffer = (void *)(f->esp+8);
-      size_t size = *(size_t *)(f->esp+12);
+      unsigned size = *(unsigned *)(f->esp+12);
+
+      //printf("fd:%d\n",fd);
+
+      //printf("size:%d\n",size);
 
       int return_code = sys_read(fd, buffer, size);
       f->eax= return_code;
@@ -283,17 +290,16 @@ int sys_wait(pid_t pid) {
 }
 
 int sys_read(int fd, void *buffer, unsigned size){
-  
-      printf("sys_read\n");
-      printf("..fd: %d\n",fd);
-      printf("..buffer: %s\n",*(char **)buffer);
-      printf("..size: %d\n",size);
 
-      if(fd == STDOUT_FILENO)
-      {
-        putbuf (*(char **)buffer, size);
+    
+      if(fd == 0) { // stdin
+        unsigned i;
+        for(i = 0; i < size; ++i) {
+        ((uint8_t *)buffer)[i] = input_getc();
+        }
         return size;
       }
+
 
       else{ 
         //TODO
@@ -306,7 +312,7 @@ int sys_read(int fd, void *buffer, unsigned size){
   
         getfd(fd_list, &file_toread,fd); 
 
-        printf("writing to file\n");
+        //printf("reading from file\n");
         if(!list_empty(fd_list) && file_toread && file_toread->file) {
           int return_code = file_read(file_toread->file, *(char **)buffer, size);
           //return 239;
@@ -317,7 +323,8 @@ int sys_read(int fd, void *buffer, unsigned size){
         return -1;
 
       }
-
+      
+      return 239;
 }
 
 int sys_write(int fd, const void *buffer, unsigned size){
@@ -487,5 +494,18 @@ get_user (const uint8_t *uaddr) {
    asm ("movl $1f, %0; movzbl %1, %0; 1:"
        : "=&a" (result) : "m" (*uaddr));
    return result;
+}
+
+static int
+memread_user (void *src, void *dst, size_t bytes)
+{
+  int32_t value;
+  size_t i;
+  for(i=0; i<bytes; i++) {
+    value = get_user(src + i);
+    if(value < 0) return -1; // invalid memory access.
+    *(char*)(dst + i) = value & 0xff;
+  }
+  return (int)bytes;
 }
 
