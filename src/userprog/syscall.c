@@ -20,12 +20,14 @@ int sys_wait(pid_t pid);
 bool sys_create(char *filename, unsigned filesize);
 bool sys_remove(char *filename);
 int sys_open(char *filename);
+void sys_close(int fdnumber);
+void getfd(struct list *fd_list, struct file_descriptor **mrright, int fd);
+
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
 bool check_buffer (void* buffer, unsigned size);
 static int get_user (const uint8_t *uaddr);
-
 
 void
 syscall_init (void)
@@ -215,6 +217,32 @@ syscall_handler (struct intr_frame *f)
   case SYS_SEEK:
   case SYS_TELL:
   case SYS_CLOSE:
+  {
+
+      if(!check_buffer(f->esp+4, sizeof(int))){
+        sys_badmemory_access();
+      } 
+
+      int fdnumber = *(int *)(f->esp+4);
+
+      //check valid memory access
+      if( get_user((const uint8_t *)(f->esp+4))<0){
+        sys_badmemory_access();
+      }
+
+      //printf("sys_close,fd_number%d\n", fdnumber);
+      
+      sys_close(fdnumber);
+
+      break;
+
+
+
+  }
+
+
+
+
 
   /* unhandled case */
   default:
@@ -333,6 +361,46 @@ int sys_open(char* filename) {
 
 }
 
+void sys_close(int fd) {
+
+  struct file_descriptor* file_toclose = NULL;
+
+  struct thread *t = thread_current();  
+  struct list *fd_list = &(t->file_descriptors);
+  
+  getfd(fd_list, &file_toclose,fd);  
+
+
+  if(!list_empty(fd_list) && file_toclose && file_toclose->file) {
+    file_close(file_toclose->file);
+    list_remove(&(file_toclose->elem));
+  }
+
+  return;
+}
+
+void getfd(struct list *fd_list, struct file_descriptor **mrright, int fd)
+{
+  struct list_elem *iter = NULL;
+
+  if(list_empty(fd_list)){
+    return;
+  }
+
+  //printf("..getfd,list not empty\n");
+  for(iter = list_begin(fd_list);iter != list_end(fd_list); iter = list_next(fd_list))
+    {
+      struct file_descriptor *desc = list_entry(iter, struct file_descriptor, elem);
+      if(desc->fd_number == fd) {
+
+        *mrright = desc;
+        return;
+      }
+    }
+
+
+  return;
+}
 /****************** Helper Functions on Memory Access ********************/
 
 bool
