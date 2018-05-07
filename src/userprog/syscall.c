@@ -12,7 +12,7 @@ static void syscall_handler (struct intr_frame *);
 
 //help function
 int sys_badmemory_access(void);
-void sys_write(int fd, const void *buffer, unsigned size);
+int sys_write(int fd, const void *buffer, unsigned size);
 void sys_halt (void);
 void sys_exit (int);
 pid_t sys_exec (const char *cmdline);
@@ -21,7 +21,10 @@ bool sys_create(char *filename, unsigned filesize);
 bool sys_remove(char *filename);
 int sys_open(char *filename);
 void sys_close(int fdnumber);
+
+
 void getfd(struct list *fd_list, struct file_descriptor **mrright, int fd);
+
 
 
 //memory check function
@@ -187,30 +190,12 @@ syscall_handler (struct intr_frame *f)
 
   case SYS_WRITE:
     {
-      if (!check_addr(f->esp+4)){
-        thread_exit();
-      }
-      if (!check_addr(f->esp+8)){
-        thread_exit();
-      }
-      if (!check_addr(f->esp+12)){
-        thread_exit();
-      }
-
       int fd = *(int *)(f->esp+4);
       void *buffer = (void *)(f->esp+8);
       size_t size = *(size_t *)(f->esp+12);
 
-
-      if(!check_buffer (buffer, size)){
-        thread_exit();
-      }
-
-      sys_write(fd, buffer, size);
-
-      //TODO:
-      //f->eax= ?
-
+      int return_code = sys_write(fd, buffer, size);
+      f->eax= return_code;
       break;
     }
 
@@ -286,18 +271,19 @@ int sys_wait(pid_t pid) {
   return process_wait(pid);
 }
 
-void sys_write(int fd, const void *buffer, unsigned size){
+int sys_write(int fd, const void *buffer, unsigned size){
     
-      if(!check_buffer ((void *)buffer, size)){
-        thread_exit();
-      }
       
+      //printf("sys_write\n");
+      //printf("fd_numer:%d\n",fd);
+																																																																																																																																																																				
+      //printf("size:%d\n",size);
 
       //Case1: print to screem
-      if(fd == 1)
+      if(fd == STDOUT_FILENO)
       {
         putbuf (*(char **)buffer, size);
-        return;
+        return size;
       }
     
       //Case2: print to file 
@@ -305,10 +291,26 @@ void sys_write(int fd, const void *buffer, unsigned size){
         //TODO
 
 
+        struct file_descriptor* file_towrite = NULL;
+
+        struct thread *t = thread_current();  
+        struct list *fd_list = &(t->file_descriptors);
+  
+        getfd(fd_list, &file_towrite,fd); 
+
+        if(!list_empty(fd_list) && file_towrite && file_towrite->file) {
+          int return_code = file_write(file_towrite->file, *(char **)buffer, size);
+          //return 239;
+          return return_code; 
+        }
+
+
+        return -1;
 
       }
 
 }
+
 
 bool sys_create(char *filename, unsigned filesize){
   bool return_code = false;
@@ -378,6 +380,7 @@ void sys_close(int fd) {
 
   return;
 }
+
 
 void getfd(struct list *fd_list, struct file_descriptor **mrright, int fd)
 {
