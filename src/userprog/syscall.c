@@ -12,6 +12,7 @@ static void syscall_handler (struct intr_frame *);
 
 //help function
 int sys_badmemory_access(void);
+int sys_read(int fd, void *buffer, unsigned size);
 int sys_write(int fd, const void *buffer, unsigned size);
 void sys_halt (void);
 void sys_exit (int);
@@ -186,8 +187,18 @@ syscall_handler (struct intr_frame *f)
 
   case SYS_FILESIZE:
   case SYS_READ:
-    goto unhandled;
+  {
+      int fd = *(int *)(f->esp+4);
+      void *buffer = (void *)(f->esp+8);
+      size_t size = *(size_t *)(f->esp+12);
 
+      int return_code = sys_read(fd, buffer, size);
+      f->eax= return_code;
+      break;
+
+
+
+  }
   case SYS_WRITE:
     {
       int fd = *(int *)(f->esp+4);
@@ -269,6 +280,44 @@ pid_t sys_exec(const char *cmdline) {
 
 int sys_wait(pid_t pid) {
   return process_wait(pid);
+}
+
+int sys_read(int fd, void *buffer, unsigned size){
+  
+      printf("sys_read\n");
+      printf("..fd: %d\n",fd);
+      printf("..buffer: %s\n",*(char **)buffer);
+      printf("..size: %d\n",size);
+
+      if(fd == STDOUT_FILENO)
+      {
+        putbuf (*(char **)buffer, size);
+        return size;
+      }
+
+      else{ 
+        //TODO
+
+
+        struct file_descriptor* file_toread = NULL;
+
+        struct thread *t = thread_current();  
+        struct list *fd_list = &(t->file_descriptors);
+  
+        getfd(fd_list, &file_toread,fd); 
+
+        printf("writing to file\n");
+        if(!list_empty(fd_list) && file_toread && file_toread->file) {
+          int return_code = file_read(file_toread->file, *(char **)buffer, size);
+          //return 239;
+          return return_code; 
+        }
+
+
+        return -1;
+
+      }
+
 }
 
 int sys_write(int fd, const void *buffer, unsigned size){
