@@ -19,6 +19,7 @@ pid_t sys_exec (const char *cmdline);
 int sys_wait(pid_t pid);
 bool sys_create(char *filename, unsigned filesize);
 bool sys_remove(char *filename);
+int sys_open(char *filename);
 
 //memory check function
 bool check_addr (const uint8_t *uaddr);
@@ -157,6 +158,27 @@ syscall_handler (struct intr_frame *f)
 
   }
   case SYS_OPEN:
+  {
+      //check whether pointer is below PHYS_BASE
+      if(!check_buffer(f->esp+4, sizeof(char*))){
+        sys_badmemory_access();
+      } 
+
+      char* filename = *(char **)(f->esp+4);
+
+      //check valid memory access
+      if( get_user((const uint8_t *)filename)<0){
+        sys_badmemory_access();
+      }
+
+      int return_code = sys_open(filename);
+      f->eax = return_code;
+      
+      break;
+
+  }
+
+
   case SYS_FILESIZE:
   case SYS_READ:
     goto unhandled;
@@ -274,6 +296,40 @@ bool sys_remove(char *filename){
   return_code = filesys_remove(filename);
 
   return return_code;
+
+}
+
+int sys_open(char* filename) {
+
+  struct file* file_opened = filesys_open(filename);;
+
+  struct file_descriptor* fd = malloc(sizeof(struct file_descriptor));
+
+
+
+  if (file_opened!=NULL) {
+
+    //TODO:rewrite sys_open
+
+    fd->file = file_opened; //file save
+
+    struct list* fd_list = &thread_current()->file_descriptors;
+    if (list_empty(fd_list)) {
+      // 0, 1, 2 are reserved for stdin, stdout, stderr
+      fd->fd_number = 3;
+    }
+    else {
+      fd->fd_number = (list_entry(list_back(fd_list), struct file_descriptor, elem)->fd_number) + 1;
+    }
+    list_push_back(fd_list, &(fd->elem));
+
+    return fd->fd_number;
+  }
+
+  //palloc_free_page (fd);
+
+  return -1;
+
 
 }
 
